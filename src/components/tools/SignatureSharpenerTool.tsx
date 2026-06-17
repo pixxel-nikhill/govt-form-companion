@@ -129,12 +129,61 @@ export default function SignatureSharpenerTool() {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const d = imageData.data;
       const W = canvas.width, H = canvas.height;
-      const binary = adaptiveThreshold(d, W, H);
-      for (let i = 0; i < W * H; i++) {
-        const val = binary[i] ? 0 : 255;
-        d[i*4] = val; d[i*4+1] = val; d[i*4+2] = val; d[i*4+3] = 255;
+      let binary = adaptiveThreshold(d, W, H);
+
+      // Flood-fill from all 4 borders — removes dark objects/edges touching the frame
+      const stack: number[] = [];
+      for (let x = 0; x < W; x++) { stack.push(x); stack.push((H - 1) * W + x); }
+      for (let y = 1; y < H - 1; y++) { stack.push(y * W); stack.push(y * W + W - 1); }
+      while (stack.length) {
+        const idx = stack.pop()!;
+        if (idx < 0 || idx >= W * H || binary[idx] !== 1) continue;
+        binary[idx] = 0;
+        const x = idx % W, y = Math.floor(idx / W);
+        if (x > 0) stack.push(idx - 1);
+        if (x < W - 1) stack.push(idx + 1);
+        if (y > 0) stack.push(idx - W);
+        if (y < H - 1) stack.push(idx + W);
       }
-      ctx.putImageData(imageData, 0, 0);
+
+      // Auto-crop: find tightest bounding box around ink pixels + padding
+      let minX = W, maxX = 0, minY = H, maxY = 0;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+          if (binary[y * W + x] === 1) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+      // Fall back to full image if no ink found
+      if (minX >= maxX || minY >= maxY) { minX = 0; maxX = W - 1; minY = 0; maxY = H - 1; }
+      const PAD = Math.round(Math.min(W, H) * 0.06);
+      minX = Math.max(0, minX - PAD); maxX = Math.min(W - 1, maxX + PAD);
+      minY = Math.max(0, minY - PAD); maxY = Math.min(H - 1, maxY + PAD);
+      const cropW = maxX - minX + 1, cropH = maxY - minY + 1;
+
+      // Draw cropped + binarized result onto final canvas
+      canvas.width = cropW;
+      canvas.height = cropH;
+      const ctx2 = canvas.getContext("2d")!;
+      ctx2.fillStyle = "#ffffff";
+      ctx2.fillRect(0, 0, cropW, cropH);
+      const cropped = ctx2.createImageData(cropW, cropH);
+      for (let y = 0; y < cropH; y++) {
+        for (let x = 0; x < cropW; x++) {
+          const srcIdx = (minY + y) * W + (minX + x);
+          const dstIdx = (y * cropW + x) * 4;
+          const val = binary[srcIdx] ? 0 : 255;
+          cropped.data[dstIdx] = val;
+          cropped.data[dstIdx + 1] = val;
+          cropped.data[dstIdx + 2] = val;
+          cropped.data[dstIdx + 3] = 255;
+        }
+      }
+      ctx2.putImageData(cropped, 0, 0);
 
       setMsg(`Hitting ${preset.label}…`);
 
