@@ -65,18 +65,21 @@ export default function PassportPhotoTool() {
       // Load with EXIF auto-rotation correction
       const { corrected: source } = await loadImageWithOrientation(fileRef.current);
 
-      setMsg(`Resizing to ${preset.px}×${preset.px} px…`);
+      // Step 1: scale down so the longest side is at most 600px — prevents
+      // heavy JPEG block artifacts when quality is reduced on a large canvas.
+      const MAX_SIDE = 600;
+      const longestSide = Math.max(source.width, source.height);
+      const scale = longestSide > MAX_SIDE ? MAX_SIDE / longestSide : 1;
+      const outW = Math.round(source.width * scale);
+      const outH = Math.round(source.height * scale);
+
+      setMsg(`Resizing to ${outW}×${outH} px…`);
       const canvas = document.createElement("canvas");
-      canvas.width = preset.px;
-      canvas.height = preset.px;
-      const ctx = canvas.getContext("2d")!;
+      canvas.width = outW;
+      canvas.height = outH;
+      canvas.getContext("2d")!.drawImage(source, 0, 0, outW, outH);
 
-      // Centre-crop square from orientation-corrected source
-      const side = Math.min(source.width, source.height);
-      const sx = (source.width - side) / 2;
-      const sy = (source.height - side) / 2;
-      ctx.drawImage(source, sx, sy, side, side, 0, 0, preset.px, preset.px);
-
+      // Step 2: binary-search quality on the smaller canvas to hit target KB.
       setMsg(`Hitting ${preset.label}…`);
 
       // Binary-search JPEG quality to land in [minKb, maxKb]
@@ -96,7 +99,7 @@ export default function PassportPhotoTool() {
       const filename = sanitizeFilename(fileRef.current.name);
       setOutput({ url, sizeKb: kb, filename, originalBytes: fileRef.current.size, outputBytes: bestBlob.size });
       setStatus("done");
-      setMsg(`Done — ${kb} KB at ${preset.px}×${preset.px} px`);
+      setMsg(`Done — ${kb} KB at ${outW}×${outH} px`);
     } catch {
       setStatus("error");
       setMsg("Something went wrong. Try a different image.");
