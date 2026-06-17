@@ -107,11 +107,34 @@ export default function SignatureSharpenerTool() {
       // Binarize using Otsu's auto-threshold — adapts to any lighting condition
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const d = imageData.data;
+      const W = canvas.width, H = canvas.height;
       const threshold = otsuThreshold(d);
-      for (let i = 0; i < d.length; i += 4) {
-        const brightness = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-        const val = brightness > threshold ? 255 : 0;
-        d[i] = val; d[i + 1] = val; d[i + 2] = val; d[i + 3] = 255;
+      // Build binary map: 1 = ink (dark), 0 = background (light)
+      const binary = new Uint8Array(W * H);
+      for (let i = 0; i < W * H; i++) {
+        const brightness = 0.299 * d[i*4] + 0.587 * d[i*4+1] + 0.114 * d[i*4+2];
+        binary[i] = brightness <= threshold ? 1 : 0;
+      }
+      // Flood-fill from all 4 edges — dark regions touching the border are background, not ink
+      const visited = new Uint8Array(W * H);
+      const queue: number[] = [];
+      for (let x = 0; x < W; x++) { queue.push(x); queue.push((H-1)*W + x); }
+      for (let y = 1; y < H-1; y++) { queue.push(y*W); queue.push(y*W + W-1); }
+      while (queue.length) {
+        const idx = queue.pop()!;
+        if (idx < 0 || idx >= W*H || visited[idx] || binary[idx] === 0) continue;
+        visited[idx] = 1;
+        binary[idx] = 0; // reclassify border-connected dark as background
+        const x = idx % W, y = Math.floor(idx / W);
+        if (x > 0) queue.push(idx-1);
+        if (x < W-1) queue.push(idx+1);
+        if (y > 0) queue.push(idx-W);
+        if (y < H-1) queue.push(idx+W);
+      }
+      // Write final pixels: ink=black, background=white
+      for (let i = 0; i < W * H; i++) {
+        const val = binary[i] ? 0 : 255;
+        d[i*4] = val; d[i*4+1] = val; d[i*4+2] = val; d[i*4+3] = 255;
       }
       ctx.putImageData(imageData, 0, 0);
 
