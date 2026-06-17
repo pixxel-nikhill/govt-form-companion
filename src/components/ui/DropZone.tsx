@@ -44,7 +44,7 @@ export default function DropZone({ onFile, onFiles, accept = "image/*", multiple
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={handleDrop}
-      className={`group relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-10 cursor-pointer transition-all duration-300
+      className={`group relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-7 cursor-pointer transition-all duration-300
         ${isDragging ? "border-indigo-500 bg-indigo-50 scale-[1.01] drop-active" : "border-slate-200 bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/50"}`}
     >
       <input type="file" accept={accept} multiple={multiple} onChange={handleChange} className="sr-only" />

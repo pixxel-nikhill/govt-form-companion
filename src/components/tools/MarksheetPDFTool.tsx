@@ -7,6 +7,7 @@ import DropZone from "@/components/ui/DropZone";
 import StatusBadge from "@/components/ui/StatusBadge";
 import DownloadBtn from "@/components/ui/DownloadBtn";
 import SizeComparison from "@/components/ui/SizeComparison";
+import { loadImageWithOrientation } from "@/utils/exif";
 
 type Status = "idle" | "processing" | "done" | "error";
 
@@ -259,7 +260,7 @@ async function makePDFBuffer(
 
   for (let i = 0; i < pages.length; i++) {
     if (i > 0) pdf.addPage();
-    const canvas = await fileToCanvas(pages[i].file, W * 2, H * 2);
+    const canvas = await fileToCanvas(pages[i].file);
     const dataUrl = canvas.toDataURL("image/jpeg", imgQuality);
     pdf.addImage(dataUrl, "JPEG", 0, 0, W, H);
   }
@@ -267,18 +268,14 @@ async function makePDFBuffer(
   return pdf.output("arraybuffer") as ArrayBuffer;
 }
 
-function fileToCanvas(file: File, maxW: number, maxH: number): Promise<HTMLCanvasElement> {
-  return new Promise((res, rej) => {
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(maxW / img.width, maxH / img.height, 1);
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-      res(canvas);
-    };
-    img.onerror = rej;
-    img.src = URL.createObjectURL(file);
-  });
+async function fileToCanvas(file: File): Promise<HTMLCanvasElement> {
+  const { corrected } = await loadImageWithOrientation(file);
+  const MAX_W = 1200;
+  if (corrected.width <= MAX_W) return corrected;
+  const scale = MAX_W / corrected.width;
+  const dst = document.createElement("canvas");
+  dst.width = MAX_W;
+  dst.height = Math.round(corrected.height * scale);
+  dst.getContext("2d")!.drawImage(corrected, 0, 0, dst.width, dst.height);
+  return dst;
 }

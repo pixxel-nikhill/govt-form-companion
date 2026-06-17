@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { PenLine, RefreshCcw, ImageDown } from "lucide-react";
+import { PenLine, RefreshCcw, ImageDown, RotateCw } from "lucide-react";
 import DropZone from "@/components/ui/DropZone";
 import StatusBadge from "@/components/ui/StatusBadge";
 import DownloadBtn from "@/components/ui/DownloadBtn";
@@ -26,7 +26,7 @@ interface SizePreset {
 
 const PRESETS: SizePreset[] = [
   {
-    label: "10–20 KB",
+    label: "10-20 KB",
     sublabel: "SSC / IBPS",
     minKb: 10, maxKb: 20,
     color: "text-pink-700",
@@ -36,7 +36,7 @@ const PRESETS: SizePreset[] = [
     btnBg: "bg-pink-600 hover:bg-pink-700 shadow-pink-200",
   },
   {
-    label: "20–50 KB",
+    label: "20-50 KB",
     sublabel: "UPSC / Others",
     minKb: 20, maxKb: 50,
     color: "text-rose-700",
@@ -47,12 +47,6 @@ const PRESETS: SizePreset[] = [
   },
 ];
 
-/**
- * Bradley-Roth adaptive thresholding.
- * Each pixel is compared to the mean brightness of its local neighbourhood
- * (radius px), minus a sensitivity offset. Handles uneven lighting and shadows.
- * Returns a binary Uint8Array: 1 = ink, 0 = background.
- */
 function adaptiveThreshold(
   data: Uint8ClampedArray,
   width: number,
@@ -60,7 +54,6 @@ function adaptiveThreshold(
   radius = 60,
   sensitivity = 0.18
 ): Uint8Array {
-  // Build grayscale + integral image for O(1) local mean lookup
   const gray = new Float32Array(width * height);
   for (let i = 0; i < width * height; i++) {
     gray[i] = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
@@ -93,11 +86,25 @@ function adaptiveThreshold(
   return binary;
 }
 
+function rotateCanvas(src: HTMLCanvasElement, deg: number): HTMLCanvasElement {
+  if (deg === 0) return src;
+  const dst = document.createElement("canvas");
+  const swap = deg === 90 || deg === 270;
+  dst.width  = swap ? src.height : src.width;
+  dst.height = swap ? src.width  : src.height;
+  const ctx = dst.getContext("2d")!;
+  ctx.translate(dst.width / 2, dst.height / 2);
+  ctx.rotate((deg * Math.PI) / 180);
+  ctx.drawImage(src, -src.width / 2, -src.height / 2);
+  return dst;
+}
+
 export default function SignatureSharpenerTool() {
   const [selected, setSelected] = useState(0);
   const [status, setStatus] = useState<Status>("idle");
   const [msg, setMsg] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
+  const [rotDeg, setRotDeg] = useState(0);
   const [output, setOutput] = useState<{ url: string; sizeKb: number; filename: string; originalBytes: number; outputBytes: number } | null>(null);
   const fileRef = useRef<File | null>(null);
 
@@ -107,31 +114,38 @@ export default function SignatureSharpenerTool() {
     setOutput(null);
     setStatus("idle");
     setMsg("");
+    setRotDeg(0);
+  }
+
+  function rotate90() {
+    setRotDeg((d) => (d + 90) % 360);
+    setOutput(null);
+    setStatus("idle");
+    setMsg("");
   }
 
   async function compress() {
     if (!fileRef.current) return;
     const preset = PRESETS[selected];
     setStatus("processing");
-    setMsg("Cleaning background…");
+    setMsg("Cleaning background...");
     setOutput(null);
 
     try {
-      // Load with EXIF auto-rotation so mobile signature photos aren't sideways
       const { corrected: source } = await loadImageWithOrientation(fileRef.current);
-      const canvas = document.createElement("canvas");
-      canvas.width = source.width;
-      canvas.height = source.height;
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(source, 0, 0);
+      const rotated = rotateCanvas(source, rotDeg);
 
-      // Adaptive local thresholding — handles uneven lighting and shadows
+      const canvas = document.createElement("canvas");
+      canvas.width = rotated.width;
+      canvas.height = rotated.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(rotated, 0, 0);
+
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const d = imageData.data;
       const W = canvas.width, H = canvas.height;
-      let binary = adaptiveThreshold(d, W, H);
+      const binary = adaptiveThreshold(d, W, H);
 
-      // Flood-fill from all 4 borders — removes dark objects/edges touching the frame
       const stack: number[] = [];
       for (let x = 0; x < W; x++) { stack.push(x); stack.push((H - 1) * W + x); }
       for (let y = 1; y < H - 1; y++) { stack.push(y * W); stack.push(y * W + W - 1); }
@@ -146,26 +160,26 @@ export default function SignatureSharpenerTool() {
         if (y < H - 1) stack.push(idx + W);
       }
 
-      // Auto-crop: find tightest bounding box around ink pixels + padding
-      let minX = W, maxX = 0, minY = H, maxY = 0;
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          if (binary[y * W + x] === 1) {
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-          }
-        }
-      }
-      // Fall back to full image if no ink found
+      // Density-filtered bounding box: skip rows/cols with fewer than MIN_STRIP
+      // ink pixels so isolated specks do not bloat the crop region.
+      const MIN_STRIP = 4;
+      const rowSum = new Int32Array(H);
+      const colSum = new Int32Array(W);
+      for (let y = 0; y < H; y++)
+        for (let x = 0; x < W; x++)
+          if (binary[y * W + x]) { rowSum[y]++; colSum[x]++; }
+
+      let minY = H, maxY = 0, minX = W, maxX = 0;
+      for (let y = 0; y < H; y++) if (rowSum[y] >= MIN_STRIP) { if (y < minY) minY = y; if (y > maxY) maxY = y; }
+      for (let x = 0; x < W; x++) if (colSum[x] >= MIN_STRIP) { if (x < minX) minX = x; if (x > maxX) maxX = x; }
+
       if (minX >= maxX || minY >= maxY) { minX = 0; maxX = W - 1; minY = 0; maxY = H - 1; }
-      const PAD = Math.round(Math.min(W, H) * 0.06);
+
+      const PAD = 20;
       minX = Math.max(0, minX - PAD); maxX = Math.min(W - 1, maxX + PAD);
       minY = Math.max(0, minY - PAD); maxY = Math.min(H - 1, maxY + PAD);
       const cropW = maxX - minX + 1, cropH = maxY - minY + 1;
 
-      // Draw cropped + binarized result onto final canvas
       canvas.width = cropW;
       canvas.height = cropH;
       const ctx2 = canvas.getContext("2d")!;
@@ -185,9 +199,8 @@ export default function SignatureSharpenerTool() {
       }
       ctx2.putImageData(cropped, 0, 0);
 
-      setMsg(`Hitting ${preset.label}…`);
+      setMsg("Hitting " + preset.label + "...");
 
-      // Binary-search JPEG quality to land in [minKb, maxKb]
       let lo = 0.01, hi = 1.0, bestBlob: Blob | null = null;
       for (let i = 0; i < 18; i++) {
         const mid = (lo + hi) / 2;
@@ -204,7 +217,7 @@ export default function SignatureSharpenerTool() {
       const filename = sanitizeFilename(fileRef.current.name);
       setOutput({ url, sizeKb: kb, filename, originalBytes: fileRef.current.size, outputBytes: bestBlob.size });
       setStatus("done");
-      setMsg(`Done — ${kb} KB, pure white background`);
+      setMsg("Done - " + kb + " KB, pure white background");
     } catch {
       setStatus("error");
       setMsg("Could not process image. Try another file.");
@@ -217,24 +230,23 @@ export default function SignatureSharpenerTool() {
     setOutput(null);
     setStatus("idle");
     setMsg("");
+    setRotDeg(0);
   }
 
   const preset = PRESETS[selected];
 
   return (
     <div className="space-y-5">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-pink-100">
           <PenLine className="h-5 w-5 text-pink-600" />
         </div>
         <div>
           <h2 className="font-bold text-slate-800">Signature Sharpener</h2>
-          <p className="text-sm text-slate-500">Pure white background, sharp ink — pick your size limit</p>
+          <p className="text-sm text-slate-500">Pure white background, sharp ink - pick your size limit</p>
         </div>
       </div>
 
-      {/* Size preset toggles */}
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Target File Size</p>
         <div className="grid grid-cols-2 gap-2">
@@ -243,26 +255,24 @@ export default function SignatureSharpenerTool() {
               key={p.label}
               whileTap={{ scale: 0.96 }}
               onClick={() => setSelected(i)}
-              className={`relative flex flex-col items-center gap-1 rounded-2xl border-2 px-3 py-3 text-center transition-all duration-200
-                ${selected === i
-                  ? `border-transparent ring-2 ${p.ring} ${p.bg} shadow-sm`
-                  : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50"
-                }`}
+              className={"relative flex flex-col items-center gap-1 rounded-2xl border-2 px-3 py-3 text-center transition-all duration-200 " +
+                (selected === i
+                  ? "border-transparent ring-2 " + p.ring + " " + p.bg + " shadow-sm"
+                  : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50")}
             >
               {selected === i && (
                 <motion.span
                   layoutId="sig-preset-dot"
-                  className={`absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full border-2 border-white ${p.dot}`}
+                  className={"absolute -top-1.5 -right-1.5 h-3.5 w-3.5 rounded-full border-2 border-white " + p.dot}
                 />
               )}
-              <span className={`text-sm font-bold ${selected === i ? p.color : "text-slate-700"}`}>{p.label}</span>
-              <span className={`text-xs ${selected === i ? p.color + " opacity-70" : "text-slate-400"}`}>{p.sublabel}</span>
+              <span className={"text-sm font-bold " + (selected === i ? p.color : "text-slate-700")}>{p.label}</span>
+              <span className={"text-xs " + (selected === i ? p.color + " opacity-70" : "text-slate-400")}>{p.sublabel}</span>
             </motion.button>
           ))}
         </div>
       </div>
 
-      {/* Drop zone or preview */}
       <AnimatePresence mode="wait">
         {!preview ? (
           <motion.div key="drop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -270,16 +280,16 @@ export default function SignatureSharpenerTool() {
           </motion.div>
         ) : (
           <motion.div key="preview" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-            {/* Preview on checkered background to show transparency */}
             <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-[repeating-conic-gradient(#e2e8f0_0%_25%,white_0%_50%)] bg-[size:20px_20px]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={output?.url ?? preview}
                 alt="Signature preview"
-                className="mx-auto block max-h-40 w-full object-contain mix-blend-multiply"
+                style={{ transform: output ? undefined : ("rotate(" + rotDeg + "deg)") }}
+                className="mx-auto block max-h-40 w-full object-contain mix-blend-multiply transition-transform duration-300"
               />
               {output && (
-                <div className={`absolute bottom-2 right-2 rounded-full px-2.5 py-1 text-xs font-bold ${preset.bg} ${preset.color} ring-1 ${preset.ring}`}>
+                <div className={"absolute bottom-2 right-2 rounded-full px-2.5 py-1 text-xs font-bold " + preset.bg + " " + preset.color + " ring-1 " + preset.ring}>
                   {output.sizeKb} KB
                 </div>
               )}
@@ -290,20 +300,30 @@ export default function SignatureSharpenerTool() {
 
             <div className="flex flex-wrap items-center gap-3">
               {!output && status !== "processing" && (
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={compress}
-                  className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-colors ${preset.btnBg}`}
-                >
-                  <ImageDown className="h-4 w-4" />
-                  Sharpen to {preset.label}
-                </motion.button>
+                <>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={compress}
+                    className={"inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-colors " + preset.btnBg}
+                  >
+                    <ImageDown className="h-4 w-4" />
+                    Sharpen to {preset.label}
+                  </motion.button>
+
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={rotate90}
+                    className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-100 transition-colors"
+                  >
+                    <RotateCw className="h-3.5 w-3.5" /> Rotate 90
+                  </motion.button>
+                </>
               )}
 
               {output && (
                 <>
-                  <DownloadBtn href={output.url} filename={output.filename} label="Download" size={`${output.sizeKb} KB`} />
+                  <DownloadBtn href={output.url} filename={output.filename} label="Download" size={output.sizeKb + " KB"} />
                   <motion.button
                     whileTap={{ scale: 0.97 }}
                     onClick={() => { setOutput(null); setStatus("idle"); setMsg(""); }}
