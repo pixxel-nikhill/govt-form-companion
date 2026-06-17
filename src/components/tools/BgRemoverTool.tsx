@@ -95,8 +95,12 @@ export default function BgRemoverTool() {
         source.toBlob((b) => res(b!), "image/png")
       );
 
-      // AI background removal — returns a PNG Blob with transparent background
-      const removedBlob = await removeBackground(srcBlob);
+      // isnet is the highest-quality model in this library — fine-grained
+      // segmentation that handles hair and soft edges well.
+      const removedBlob = await removeBackground(srcBlob, {
+        model: "isnet",
+        output: { format: "image/png", quality: 1.0 },
+      });
 
       setMsg("Compositing white background...");
 
