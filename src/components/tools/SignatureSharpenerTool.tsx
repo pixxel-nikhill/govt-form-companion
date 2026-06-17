@@ -47,29 +47,50 @@ const PRESETS: SizePreset[] = [
   },
 ];
 
-/** Otsu's method — finds optimal threshold from image histogram automatically */
-function otsuThreshold(data: Uint8ClampedArray): number {
-  const hist = new Array(256).fill(0);
-  const total = data.length / 4;
-  for (let i = 0; i < data.length; i += 4) {
-    const lum = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-    hist[lum]++;
+/**
+ * Bradley-Roth adaptive thresholding.
+ * Each pixel is compared to the mean brightness of its local neighbourhood
+ * (radius px), minus a sensitivity offset. Handles uneven lighting and shadows.
+ * Returns a binary Uint8Array: 1 = ink, 0 = background.
+ */
+function adaptiveThreshold(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  radius = 60,
+  sensitivity = 0.18
+): Uint8Array {
+  // Build grayscale + integral image for O(1) local mean lookup
+  const gray = new Float32Array(width * height);
+  for (let i = 0; i < width * height; i++) {
+    gray[i] = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
   }
-  let sum = 0;
-  for (let i = 0; i < 256; i++) sum += i * hist[i];
-  let sumB = 0, wB = 0, max = 0, threshold = 128;
-  for (let t = 0; t < 256; t++) {
-    wB += hist[t];
-    if (wB === 0) continue;
-    const wF = total - wB;
-    if (wF === 0) break;
-    sumB += t * hist[t];
-    const mB = sumB / wB;
-    const mF = (sum - sumB) / wF;
-    const between = wB * wF * (mB - mF) ** 2;
-    if (between > max) { max = between; threshold = t; }
+  const integral = new Float64Array((width + 1) * (height + 1));
+  for (let y = 1; y <= height; y++) {
+    for (let x = 1; x <= width; x++) {
+      integral[y * (width + 1) + x] =
+        gray[(y - 1) * width + (x - 1)] +
+        integral[(y - 1) * (width + 1) + x] +
+        integral[y * (width + 1) + (x - 1)] -
+        integral[(y - 1) * (width + 1) + (x - 1)];
+    }
   }
-  return threshold;
+  const binary = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const x1 = Math.max(0, x - radius), y1 = Math.max(0, y - radius);
+      const x2 = Math.min(width - 1, x + radius), y2 = Math.min(height - 1, y + radius);
+      const count = (x2 - x1 + 1) * (y2 - y1 + 1);
+      const sum =
+        integral[(y2 + 1) * (width + 1) + (x2 + 1)] -
+        integral[y1 * (width + 1) + (x2 + 1)] -
+        integral[(y2 + 1) * (width + 1) + x1] +
+        integral[y1 * (width + 1) + x1];
+      const localMean = sum / count;
+      binary[y * width + x] = gray[y * width + x] < localMean * (1 - sensitivity) ? 1 : 0;
+    }
+  }
+  return binary;
 }
 
 export default function SignatureSharpenerTool() {
@@ -104,34 +125,11 @@ export default function SignatureSharpenerTool() {
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(source, 0, 0);
 
-      // Binarize using Otsu's auto-threshold — adapts to any lighting condition
+      // Adaptive local thresholding — handles uneven lighting and shadows
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const d = imageData.data;
       const W = canvas.width, H = canvas.height;
-      const threshold = otsuThreshold(d);
-      // Build binary map: 1 = ink (dark), 0 = background (light)
-      const binary = new Uint8Array(W * H);
-      for (let i = 0; i < W * H; i++) {
-        const brightness = 0.299 * d[i*4] + 0.587 * d[i*4+1] + 0.114 * d[i*4+2];
-        binary[i] = brightness <= threshold ? 1 : 0;
-      }
-      // Flood-fill from all 4 edges — dark regions touching the border are background, not ink
-      const visited = new Uint8Array(W * H);
-      const queue: number[] = [];
-      for (let x = 0; x < W; x++) { queue.push(x); queue.push((H-1)*W + x); }
-      for (let y = 1; y < H-1; y++) { queue.push(y*W); queue.push(y*W + W-1); }
-      while (queue.length) {
-        const idx = queue.pop()!;
-        if (idx < 0 || idx >= W*H || visited[idx] || binary[idx] === 0) continue;
-        visited[idx] = 1;
-        binary[idx] = 0; // reclassify border-connected dark as background
-        const x = idx % W, y = Math.floor(idx / W);
-        if (x > 0) queue.push(idx-1);
-        if (x < W-1) queue.push(idx+1);
-        if (y > 0) queue.push(idx-W);
-        if (y < H-1) queue.push(idx+W);
-      }
-      // Write final pixels: ink=black, background=white
+      const binary = adaptiveThreshold(d, W, H);
       for (let i = 0; i < W * H; i++) {
         const val = binary[i] ? 0 : 255;
         d[i*4] = val; d[i*4+1] = val; d[i*4+2] = val; d[i*4+3] = 255;
