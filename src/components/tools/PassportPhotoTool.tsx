@@ -8,6 +8,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import DownloadBtn from "@/components/ui/DownloadBtn";
 import { loadImageWithOrientation } from "@/utils/exif";
 import { sanitizeFilename } from "@/utils/filename";
+import SizeComparison from "@/components/ui/SizeComparison";
 
 type Status = "idle" | "processing" | "done" | "error";
 
@@ -42,7 +43,7 @@ export default function PassportPhotoTool() {
   const [status, setStatus] = useState<Status>("idle");
   const [msg, setMsg] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
-  const [output, setOutput] = useState<{ url: string; sizeKb: number; filename: string } | null>(null);
+  const [output, setOutput] = useState<{ url: string; sizeKb: number; filename: string; originalBytes: number; outputBytes: number } | null>(null);
   const fileRef = useRef<File | null>(null);
 
   function onFile(file: File) {
@@ -93,7 +94,7 @@ export default function PassportPhotoTool() {
       const kb = parseFloat((bestBlob.size / 1024).toFixed(1));
       const url = URL.createObjectURL(bestBlob);
       const filename = sanitizeFilename(fileRef.current.name);
-      setOutput({ url, sizeKb: kb, filename });
+      setOutput({ url, sizeKb: kb, filename, originalBytes: fileRef.current.size, outputBytes: bestBlob.size });
       setStatus("done");
       setMsg(`Done — ${kb} KB at ${preset.px}×${preset.px} px`);
     } catch {
@@ -165,6 +166,7 @@ export default function PassportPhotoTool() {
             </div>
 
             <StatusBadge status={status} message={msg} />
+            {output && <SizeComparison originalBytes={output.originalBytes} outputBytes={output.outputBytes} />}
 
             <div className="flex flex-wrap items-center gap-3">
               {!output && status !== "processing" && (

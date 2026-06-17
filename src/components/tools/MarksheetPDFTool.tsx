@@ -6,6 +6,7 @@ import { FileStack, GripVertical, Trash2, RefreshCcw } from "lucide-react";
 import DropZone from "@/components/ui/DropZone";
 import StatusBadge from "@/components/ui/StatusBadge";
 import DownloadBtn from "@/components/ui/DownloadBtn";
+import SizeComparison from "@/components/ui/SizeComparison";
 
 type Status = "idle" | "processing" | "done" | "error";
 
@@ -65,7 +66,7 @@ export default function MarksheetPDFTool() {
   const [pages, setPages] = useState<PageItem[]>([]);
   const [status, setStatus] = useState<Status>("idle");
   const [msg, setMsg] = useState("");
-  const [output, setOutput] = useState<{ url: string; sizeKb: number } | null>(null);
+  const [output, setOutput] = useState<{ url: string; sizeKb: number; originalBytes: number } | null>(null);
 
   const addFiles = useCallback((files: File[]) => {
     const items: PageItem[] = files.map((f) => ({
@@ -116,8 +117,9 @@ export default function MarksheetPDFTool() {
       const blob = new Blob([finalBuf], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const kb = parseFloat((finalBuf.byteLength / 1024).toFixed(1));
+      const originalBytes = pages.reduce((sum, p) => sum + p.file.size, 0);
 
-      setOutput({ url, sizeKb: kb });
+      setOutput({ url, sizeKb: kb, originalBytes });
       setStatus("done");
       setMsg(`PDF ready — ${kb} KB • ${pages.length} page(s)`);
     } catch (e) {
@@ -229,6 +231,7 @@ export default function MarksheetPDFTool() {
         {status !== "idle" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
             <StatusBadge status={status} message={msg} />
+            {output && <SizeComparison originalBytes={output.originalBytes} outputBytes={output.sizeKb * 1024} />}
             {output && (
               <div className="flex flex-wrap items-center gap-3">
                 <DownloadBtn href={output.url} filename="document_compiled.pdf" label="Download PDF" size={`${output.sizeKb} KB`} />
