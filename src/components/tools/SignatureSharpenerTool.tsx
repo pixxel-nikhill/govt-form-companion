@@ -47,7 +47,30 @@ const PRESETS: SizePreset[] = [
   },
 ];
 
-const THRESHOLD = 200;
+/** Otsu's method — finds optimal threshold from image histogram automatically */
+function otsuThreshold(data: Uint8ClampedArray): number {
+  const hist = new Array(256).fill(0);
+  const total = data.length / 4;
+  for (let i = 0; i < data.length; i += 4) {
+    const lum = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+    hist[lum]++;
+  }
+  let sum = 0;
+  for (let i = 0; i < 256; i++) sum += i * hist[i];
+  let sumB = 0, wB = 0, max = 0, threshold = 128;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (wB === 0) continue;
+    const wF = total - wB;
+    if (wF === 0) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB;
+    const mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) ** 2;
+    if (between > max) { max = between; threshold = t; }
+  }
+  return threshold;
+}
 
 export default function SignatureSharpenerTool() {
   const [selected, setSelected] = useState(0);
@@ -81,12 +104,13 @@ export default function SignatureSharpenerTool() {
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(source, 0, 0);
 
-      // Binarize: make background pure white, ink pure black
+      // Binarize using Otsu's auto-threshold — adapts to any lighting condition
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const d = imageData.data;
+      const threshold = otsuThreshold(d);
       for (let i = 0; i < d.length; i += 4) {
         const brightness = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-        const val = brightness > THRESHOLD ? 255 : 0;
+        const val = brightness > threshold ? 255 : 0;
         d[i] = val; d[i + 1] = val; d[i + 2] = val; d[i + 3] = 255;
       }
       ctx.putImageData(imageData, 0, 0);
