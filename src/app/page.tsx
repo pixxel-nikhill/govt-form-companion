@@ -8,12 +8,14 @@ import PassportPhotoTool from "@/components/tools/PassportPhotoTool";
 import SignatureSharpenerTool from "@/components/tools/SignatureSharpenerTool";
 import TextOverlayTool from "@/components/tools/TextOverlayTool";
 import MarksheetPDFTool from "@/components/tools/MarksheetPDFTool";
+import BgRemoverTool from "@/components/tools/BgRemoverTool";
 
 const TOOL_ACCENTS = [
   "bg-gradient-to-r from-violet-500 to-indigo-500",
   "bg-gradient-to-r from-pink-500 to-rose-500",
   "bg-gradient-to-r from-amber-400 to-orange-500",
   "bg-gradient-to-r from-teal-400 to-cyan-500",
+  "bg-gradient-to-r from-purple-500 to-fuchsia-500",
 ];
 
 const PILLS = [
@@ -73,6 +75,9 @@ export default function Home() {
           </ToolCard>
           <ToolCard accent={TOOL_ACCENTS[3]} index={3}>
             <MarksheetPDFTool />
+          </ToolCard>
+          <ToolCard accent={TOOL_ACCENTS[4]} index={4}>
+            <BgRemoverTool />
           </ToolCard>
         </div>
 
