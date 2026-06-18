@@ -175,15 +175,7 @@ export default function BgRemoverTool() {
         </div>
       </div>
 
-      <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3.5 py-2.5 text-xs text-amber-700">
-        <span className="mt-0.5">☁️</span>
-        <p>
-          <span className="font-semibold">First use needs internet.</span>{" "}
-          The AI needs to download once (like installing an app). After that, it works completely offline — your photos never leave your device.
-        </p>
-      </div>
-
-      <div className="space-y-2">
+<div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Target File Size</p>
         <div className="grid grid-cols-3 gap-2">
           {PRESETS.map((p, i) => (
