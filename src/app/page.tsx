@@ -48,11 +48,13 @@ export default function Home() {
               Companion
             </span>
           </h1>
-          <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-500 leading-relaxed">
-            Prepare your photos and documents for government applications — passport photos, signatures, marksheets — all processed privately on your device.
+          <p className="mt-4 max-w-2xl mx-auto text-lg text-slate-600 leading-relaxed">
+            Prepare passport photos, signatures, and marksheets for government forms —{" "}
+            <span className="font-semibold text-slate-800">entirely in your browser.</span>{" "}
+            No uploads. No servers. No third party ever sees your documents.
           </p>
 
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <div className="mt-6 flex flex-wrap justify-center gap-3 max-w-lg mx-auto">
             {PILLS.map(({ icon: Icon, label, color }) => (
               <span key={label} className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium ${color}`}>
                 <Icon className="h-3.5 w-3.5" />
@@ -63,7 +65,7 @@ export default function Home() {
         </motion.section>
 
         {/* Tools Grid */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 [&>*:last-child:nth-child(odd)]:md:col-span-2 [&>*:last-child:nth-child(odd)]:md:max-w-xl [&>*:last-child:nth-child(odd)]:md:mx-auto [&>*:last-child:nth-child(odd)]:md:w-full">
           <ToolCard accent={TOOL_ACCENTS[0]} index={0}>
             <PassportPhotoTool />
           </ToolCard>
@@ -86,10 +88,46 @@ export default function Home() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
-          className="mt-14 text-center text-sm text-slate-400"
+          className="mt-14 border-t border-slate-200 pt-8 pb-6 text-center text-sm text-slate-600"
         >
-          <p>All processing is done locally in your browser. No files are ever uploaded to any server.</p>
-          <p className="mt-1 text-slate-300">Govt Form Companion &copy; {new Date().getFullYear()}</p>
+          <p>
+            Designed and Developed by{" "}
+            <span className="font-semibold text-slate-800">Nikhil Pathak</span>.
+          </p>
+          <p className="mt-1">
+            To send feedback, report a bug, or just say hi, feel free to reach out!
+          </p>
+          <div className="mt-4 flex items-center justify-center gap-6">
+            <a
+              href="mailto:pathakn620@gmail.com"
+              className="inline-flex items-center gap-1.5 text-slate-600 transition-colors hover:text-indigo-600"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="20" height="16" x="2" y="4" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
+              Email
+            </a>
+            <a
+              href="https://www.linkedin.com/in/nikhil-pathak-dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-slate-600 transition-colors hover:text-indigo-600"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+                <rect width="4" height="12" x="2" y="9" />
+                <circle cx="4" cy="4" r="2" />
+              </svg>
+              LinkedIn
+            </a>
+          </div>
+          <p className="mt-5 text-xs text-slate-400">
+            All processing is done locally in your browser. No files are ever uploaded to any server.
+          </p>
+          <p className="mt-2 text-xs text-slate-400">
+            &copy; {new Date().getFullYear()} Nikhil Pathak. All rights reserved.
+          </p>
         </motion.footer>
       </main>
     </div>
