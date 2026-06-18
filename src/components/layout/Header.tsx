@@ -29,7 +29,7 @@ export default function Header() {
           </div>
           <div className="flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            <span className="text-xs font-semibold text-emerald-700">100% Private — No Upload</span>
+            <span className="text-xs font-semibold text-emerald-700">100% Privacy — Files & Docs Never Leave Your Device</span>
           </div>
         </div>
       </div>
