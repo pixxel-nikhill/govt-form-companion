@@ -1,0 +1,17 @@
+{
+  "name": "Govt Form Companion",
+  "short_name": "FormCompanion",
+  "description": "Privacy-first tools for government document preparation.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#5b21b6",
+  "theme_color": "#5b21b6",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
