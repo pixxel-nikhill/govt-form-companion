@@ -14,9 +14,9 @@ export default function ToolCard({ children, accent, index }: Props) {
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.08 }}
-      className={`relative overflow-hidden rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-100 hover:shadow-md hover:ring-slate-200 transition-all duration-300`}
+      className={`relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm border border-purple-100/60 hover:shadow-lg hover:border-purple-200 transition-all duration-300`}
     >
-      <div className={`absolute inset-x-0 top-0 h-0.5 ${accent}`} />
+      <div className={`absolute inset-y-0 left-0 w-1 ${accent}`} />
       {children}
     </motion.div>
   );

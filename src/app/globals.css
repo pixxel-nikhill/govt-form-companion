@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f5f3f7;
+  --foreground: #12091e;
+  --accent-pink: #e8176b;
+  --accent-purple: #7c3aed;
+  --accent-blue: #2563eb;
 }
 
 @theme inline {
@@ -21,13 +24,13 @@ body {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #f1f5f9; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+::-webkit-scrollbar-track { background: #ede9f4; }
+::-webkit-scrollbar-thumb { background: #c4b5d9; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #9f7aea; }
 
 /* Drop zone pulse animation */
 @keyframes borderPulse {
-  0%, 100% { border-color: #6366f1; }
-  50% { border-color: #a5b4fc; }
+  0%, 100% { border-color: #7c3aed; }
+  50% { border-color: #c4b5fd; }
 }
 .drop-active { animation: borderPulse 1s ease-in-out infinite; }
