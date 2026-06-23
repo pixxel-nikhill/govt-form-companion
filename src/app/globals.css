@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0e0818;
-  --foreground: #f0ebff;
+  --background: #fdf8ff;
+  --foreground: #1a0a2e;
 }
 
 @theme inline {
@@ -17,14 +17,12 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif);
   -webkit-font-smoothing: antialiased;
-  background-image: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(124,58,237,0.18) 0%, transparent 70%);
-  background-attachment: fixed;
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #1a1030; }
-::-webkit-scrollbar-thumb { background: #5b21b6; border-radius: 999px; }
+::-webkit-scrollbar-track { background: #f3eeff; }
+::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: #7c3aed; }
 
 /* Drop zone pulse animation */
