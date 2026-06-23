@@ -89,7 +89,7 @@ export default function Home() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
-          className="mt-14 border-t border-purple-100 pt-8 pb-6 text-center text-sm text-purple-400"
+          className="mt-14 border-t border-purple-200 pt-8 pb-6 text-center text-sm text-slate-600"
         >
           <p>
             Designed and Developed by{" "}
@@ -101,7 +101,7 @@ export default function Home() {
           <div className="mt-4 flex items-center justify-center gap-6">
             <a
               href="mailto:pathakn620@gmail.com"
-              className="inline-flex items-center gap-1.5 text-purple-400 transition-colors hover:text-[#e8176b]"
+              className="inline-flex items-center gap-1.5 text-slate-500 transition-colors hover:text-[#e8176b]"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="20" height="16" x="2" y="4" rx="2" />
@@ -113,7 +113,7 @@ export default function Home() {
               href="https://www.linkedin.com/in/nikhil-pathak-dev"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-purple-400 transition-colors hover:text-[#e8176b]"
+              className="inline-flex items-center gap-1.5 text-slate-500 transition-colors hover:text-[#e8176b]"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
@@ -123,10 +123,10 @@ export default function Home() {
               LinkedIn
             </a>
           </div>
-          <p className="mt-5 text-xs text-purple-300">
+          <p className="mt-5 text-xs text-slate-400">
             All processing is done locally in your browser. No files are ever uploaded to any server.
           </p>
-          <p className="mt-2 text-xs text-purple-300">
+          <p className="mt-2 text-xs text-slate-400">
             &copy; {new Date().getFullYear()} Nikhil Pathak. All rights reserved.
           </p>
         </motion.footer>
