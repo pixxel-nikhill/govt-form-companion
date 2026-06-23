@@ -171,7 +171,7 @@ export default function BgRemoverTool() {
         </div>
         <div>
           <h2 className="font-bold text-slate-800">Background Remover</h2>
-          <p className="text-sm text-slate-500">AI removes background, replaces with white - fully private</p>
+          <p className="text-sm text-slate-500">Your photo never leaves your device. First use downloads ~50MB AI model from a CDN.</p>
         </div>
       </div>
 
